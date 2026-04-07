@@ -36,20 +36,20 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 3 min
-- Total execution time: 5 min
+- Total execution time: 7 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 - Foundation | 2/3 | 5 min | 3 min |
+| 1 - Foundation | 3/3 | 7 min | 2 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (4 min), 01-02 (1 min)
-- Trend: Accelerating
+- Last 5 plans: 01-01 (4 min), 01-02 (1 min), 01-03 (2 min)
+- Trend: Consistent
 
 *Updated after each plan completion*
 
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - Drop new table on failure (enables clean retry)
 - Abort if table exists (protects historical data)
 - D-06: Hardcode 61 HEADERS in transform.py (no runtime file dependency)
+- Schema discovery from SAM_PUBLIC_MONTHLY_Empty at runtime (D-01)
+- Batch commits per 10K rows, not single transaction
 
 ### Pending Todos
 
@@ -80,5 +82,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-04-07
-Stopped at: Completed 01-02-PLAN.md
+Stopped at: Completed 01-03-PLAN.md (Phase 1 complete)
 Resume file: None
