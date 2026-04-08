@@ -12,8 +12,8 @@ Two phases build a complete ETL pipeline from the ground up. Phase 1 establishes
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Config, transform layer, and database layer — validated with sample data
-- [ ] **Phase 2: Extract and Assembly** - Portal scraping, download, and full pipeline wired end-to-end
+- [x] **Phase 1: Foundation** - Config, transform layer, and database layer — validated with sample data
+- [ ] **Phase 2: Extract and Assembly** - SAM.gov API access, zip download, and full pipeline wired end-to-end
 
 ## Phase Details
 
@@ -31,17 +31,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Project scaffold, config, logging, test fixture
 - [x] 01-02-PLAN.md — Transform layer (BOM strip, header injection, column validation, date parsing)
-- [ ] 01-03-PLAN.md — Database layer (schema discovery, table creation, bulk insert, cleanup)
+- [x] 01-03-PLAN.md — Database layer (schema discovery, table creation, bulk insert, cleanup)
 
 ### Phase 2: Extract and Assembly
-**Goal**: The complete pipeline runs end-to-end: scrapes SAM.gov for the current download link, downloads and extracts the zip, and loads the data using the Phase 1 foundation
+**Goal**: The complete pipeline runs end-to-end: calls SAM.gov API (or uses manual override URL) to find the current monthly zip, downloads and extracts the zip, creates a CageCode index, and loads the data using the Phase 1 foundation
 **Depends on**: Phase 1
 **Requirements**: DL-01, DL-02, DL-03, DL-04, OPS-04
 **Success Criteria** (what must be TRUE):
   1. Running `run.bat` (or `python importer.py`) against the live SAM.gov portal discovers the current monthly zip URL, downloads the ~124MB file with progress logged at intervals, and extracts the .dat file
   2. The full pipeline completes without error and a correctly populated `SAM_PUBLIC_MONTHLY_YYYYMMDD` table exists in the Sam database with the expected row count matching the source file
   3. The rotating log file contains timestamps, row counts, and a final success message with total elapsed time
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Extract module (SAM.gov API access, streaming download with retry, zip extraction)
+- [ ] 02-02-PLAN.md — Assembly (CageCode index, pipeline wiring, run.bat)
 
 ## Progress
 
@@ -50,5 +53,5 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/3 | Executing | - |
-| 2. Extract and Assembly | 0/TBD | Not started | - |
+| 1. Foundation | 3/3 | Complete | 2026-04-07 |
+| 2. Extract and Assembly | 0/2 | Not started | - |
