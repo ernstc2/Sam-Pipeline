@@ -4,6 +4,8 @@ import os
 import time
 from logging.handlers import RotatingFileHandler
 
+from sam_pipeline import extract, transform, db
+
 
 def load_config(config_path="config.ini"):
     """Load pipeline configuration from INI file."""
@@ -55,11 +57,49 @@ def main():
     logger.info("SAM Importer started")
 
     try:
-        # Phase 2 wires extract + transform + load here
-        pass
+        # Extract: download zip from SAM.gov, extract .dat
+        dat_path = extract.run(config, logger)
+        zip_path = os.path.join(
+            config["download"]["temp_dir"],
+            os.path.basename(dat_path).replace(".dat", ".ZIP").replace(".DAT", ".ZIP"),
+        )
+        logger.info("Extracted .dat: %s", dat_path)
+
+        # Transform: parse date and build table name
+        dat_filename = os.path.basename(dat_path)
+        date_str = transform.extract_date(dat_filename)
+        tbl = transform.table_name(date_str)
+        logger.info("Target table: %s", tbl)
+
+        # Load: connect, discover schema, stream rows, bulk insert
+        conn = db.connect(config)
+        try:
+            schema = db.get_template_schema(conn)
+            batch_size = int(config["pipeline"]["batch_size"])
+            rows = [row for _, row in transform.stream_dat(dat_path)]
+            logger.info("Parsed %d rows from %s", len(rows), dat_filename)
+            db.load_table(conn, tbl, schema, rows, logger, batch_size=batch_size)
+        finally:
+            conn.close()
+
+        # Cleanup temp files on success
+        for path in (dat_path, zip_path):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                    logger.info("Removed temp file: %s", path)
+                except OSError as exc:
+                    logger.warning("Could not remove temp file %s: %s", path, exc)
+
     except Exception:
         elapsed = time.time() - start_time
         logger.error("Pipeline failed after %.1f seconds", elapsed, exc_info=True)
+        try:
+            temp_dir = config["download"]["temp_dir"]
+            if os.path.exists(temp_dir):
+                logger.info("Temp files left for inspection in: %s", os.path.abspath(temp_dir))
+        except (KeyError, TypeError):
+            pass
         raise
 
     elapsed = time.time() - start_time
