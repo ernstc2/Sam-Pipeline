@@ -226,12 +226,12 @@ class TestLoadTable:
         assert len(drop_calls) == 0, "DROP TABLE should not be called if table was never created"
 
     def test_load_table_commits_per_batch(self):
-        """With batch_size=10 and 25 rows, exactly 4 commits (1 CREATE + 3 batches)."""
+        """With batch_size=10 and 25 rows, exactly 5 commits (1 CREATE + 3 batches + 1 index)."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
 
-        # table_exists returns None
+        # table_exists returns None, COUNT(*) returns row count
         mock_cursor.fetchone.side_effect = [None, (25,)]
 
         logger = MagicMock()
@@ -240,8 +240,71 @@ class TestLoadTable:
         load_table(mock_conn, "SAM_PUBLIC_MONTHLY_20260401",
                    SAMPLE_SCHEMA, rows, logger, batch_size=10)
 
-        # 1 commit for CREATE TABLE + 3 commits for batches (10, 10, 5) = 4
-        assert mock_conn.commit.call_count == 4
+        # 1 commit for CREATE TABLE + 3 commits for batches (10, 10, 5) + 1 index = 5
+        assert mock_conn.commit.call_count == 5
+
+    def test_load_table_creates_cagecode_index(self):
+        """After successful load, a CageCode nonclustered index is created."""
+        mock_conn, mock_cursor = self._make_mock_conn(table_exists_result=False)
+        # Fix side_effect: None for table_exists, (count,) for COUNT(*)
+        mock_cursor.fetchone.side_effect = [None, (2,)]
+        logger = MagicMock()
+        rows = [("v1", "v2", "v3"), ("v4", "v5", "v6")]
+
+        load_table(mock_conn, "SAM_PUBLIC_MONTHLY_20260401",
+                   SAMPLE_SCHEMA, rows, logger)
+
+        all_sql = [str(c) for c in mock_cursor.execute.call_args_list]
+        index_calls = [c for c in all_sql if "CREATE NONCLUSTERED INDEX" in c]
+        assert len(index_calls) == 1, "Expected one CREATE NONCLUSTERED INDEX call"
+        assert "IX_SAM_PUBLIC_MONTHLY_20260401_CageCode" in index_calls[0]
+        assert "[CageCode]" in index_calls[0]
+
+    def test_load_table_index_name_convention(self):
+        """Index name follows IX_{table_name}_CageCode pattern."""
+        mock_conn, mock_cursor = self._make_mock_conn(table_exists_result=False)
+        mock_cursor.fetchone.side_effect = [None, (1,)]
+        logger = MagicMock()
+        rows = [("v1", "v2", "v3")]
+        tbl = "SAM_PUBLIC_MONTHLY_20250301"
+
+        load_table(mock_conn, tbl, SAMPLE_SCHEMA, rows, logger)
+
+        all_sql = [str(c) for c in mock_cursor.execute.call_args_list]
+        index_calls = [c for c in all_sql if "CREATE NONCLUSTERED INDEX" in c]
+        assert len(index_calls) == 1
+        expected_index = f"IX_{tbl}_CageCode"
+        assert expected_index in index_calls[0]
+
+    def test_load_table_drops_on_index_failure(self):
+        """Table is dropped when index creation raises an exception."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        # table_exists returns None, COUNT(*) returns row count
+        mock_cursor.fetchone.side_effect = [None, (1,)]
+
+        call_count = [0]
+
+        def execute_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            sql = args[0] if args else ""
+            if "CREATE NONCLUSTERED INDEX" in str(sql):
+                raise Exception("index creation failed")
+
+        mock_cursor.execute.side_effect = execute_side_effect
+        logger = MagicMock()
+        rows = [("v1", "v2", "v3")]
+
+        with pytest.raises(Exception, match="index creation failed"):
+            load_table(mock_conn, "SAM_PUBLIC_MONTHLY_20260401",
+                       SAMPLE_SCHEMA, rows, logger)
+
+        # Verify DROP TABLE was called during cleanup
+        all_execute_calls = [str(c) for c in mock_cursor.execute.call_args_list]
+        drop_calls = [c for c in all_execute_calls if "DROP TABLE" in c]
+        assert len(drop_calls) > 0, "Table should be dropped when index creation fails"
 
 
 # ---------------------------------------------------------------------------

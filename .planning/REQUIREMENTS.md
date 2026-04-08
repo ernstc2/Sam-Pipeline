@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Download
 
-- [ ] **DL-01**: Pipeline scrapes SAM.gov File Extracts portal to find the current UTF-8 monthly zip link
-- [ ] **DL-02**: Pipeline downloads the ~124MB zip file over HTTP (no auth required, streaming download)
-- [ ] **DL-03**: Pipeline logs download progress at intervals during the download
-- [ ] **DL-04**: Pipeline extracts the .dat file from the downloaded zip
+- [x] **DL-01**: Pipeline scrapes SAM.gov File Extracts portal to find the current UTF-8 monthly zip link
+- [x] **DL-02**: Pipeline downloads the ~124MB zip file over HTTP (no auth required, streaming download)
+- [x] **DL-03**: Pipeline logs download progress at intervals during the download
+- [x] **DL-04**: Pipeline extracts the .dat file from the downloaded zip
 
 ### Transform
 
@@ -79,10 +79,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DL-01 | Phase 2 | Pending |
-| DL-02 | Phase 2 | Pending |
-| DL-03 | Phase 2 | Pending |
-| DL-04 | Phase 2 | Pending |
+| DL-01 | Phase 2 | Complete |
+| DL-02 | Phase 2 | Complete |
+| DL-03 | Phase 2 | Complete |
+| DL-04 | Phase 2 | Complete |
 | TF-01 | Phase 1 | Complete |
 | TF-02 | Phase 1 | Complete |
 | TF-03 | Phase 1 | Complete |

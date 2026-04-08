@@ -117,6 +117,14 @@ def load_table(conn, table_name, schema_rows, rows, logger, batch_size=10_000):
             )
         logger.info("Row count verified: %d rows", db_count)
 
+        # CageCode nonclustered index
+        index_name = f"IX_{table_name}_CageCode"
+        cursor.execute(
+            f"CREATE NONCLUSTERED INDEX [{index_name}] ON [{table_name}] ([CageCode])"
+        )
+        conn.commit()
+        logger.info("Created index %s", index_name)
+
     except Exception:
         conn.rollback()
         if table_created:
