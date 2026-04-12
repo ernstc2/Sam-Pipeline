@@ -6,7 +6,7 @@ Replaces steps 1-3 of the manual SAM data update process.
 
 ## Requirements
 
-- Python 3.12
+- Python 3.13+
 - ODBC Driver 18 for SQL Server (already installed on the server)
 - Python packages: `pyodbc`, `requests`, `beautifulsoup4`, `lxml`
 
