@@ -1,3 +1,3 @@
 @echo off
-cd /d "%~dp0\sam_pipeline"
+cd /d "%~dp0"
 python importer.py

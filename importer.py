@@ -4,7 +4,7 @@ import os
 import time
 from logging.handlers import RotatingFileHandler
 
-from sam_pipeline import extract, transform, db
+import download, extract, transform, db
 
 
 def load_config(config_path="config.ini"):
@@ -57,12 +57,14 @@ def main():
     logger.info("SAM Importer started")
 
     try:
-        # Extract: download zip from SAM.gov, extract .dat
+        # Download: fetch ZIP from SAM API if key is configured
+        if config.has_section("sam_api") and config.get("sam_api", "api_key", fallback=""):
+            download.fetch_extract(config, logger)
+        else:
+            logger.info("No API key configured — expecting manual ZIP in input folder")
+
+        # Extract: find ZIP in input folder, extract .dat
         dat_path = extract.run(config, logger)
-        zip_path = os.path.join(
-            config["download"]["temp_dir"],
-            os.path.basename(dat_path).replace(".dat", ".ZIP").replace(".DAT", ".ZIP"),
-        )
         logger.info("Extracted .dat: %s", dat_path)
 
         # Transform: parse date and build table name
@@ -71,35 +73,28 @@ def main():
         tbl = transform.table_name(date_str)
         logger.info("Target table: %s", tbl)
 
-        # Load: connect, discover schema, stream rows, bulk insert
+        # Load: connect, stream rows, bulk insert
         conn = db.connect(config)
         try:
-            schema = db.get_template_schema(conn)
             batch_size = int(config["pipeline"]["batch_size"])
             rows = [row for _, row in transform.stream_dat(dat_path)]
             logger.info("Parsed %d rows from %s", len(rows), dat_filename)
-            db.load_table(conn, tbl, schema, rows, logger, batch_size=batch_size)
+            db.load_table(conn, tbl, rows, logger, batch_size=batch_size)
+            db.enrich_contact_info(conn, tbl, logger)
         finally:
             conn.close()
 
-        # Cleanup temp files on success
-        for path in (dat_path, zip_path):
-            if path and os.path.exists(path):
-                try:
-                    os.remove(path)
-                    logger.info("Removed temp file: %s", path)
-                except OSError as exc:
-                    logger.warning("Could not remove temp file %s: %s", path, exc)
+        # Cleanup extracted .dat temp file on success
+        if dat_path and os.path.exists(dat_path):
+            try:
+                os.remove(dat_path)
+                logger.info("Removed temp file: %s", dat_path)
+            except OSError as exc:
+                logger.warning("Could not remove temp file %s: %s", dat_path, exc)
 
     except Exception:
         elapsed = time.time() - start_time
         logger.error("Pipeline failed after %.1f seconds", elapsed, exc_info=True)
-        try:
-            temp_dir = config["download"]["temp_dir"]
-            if os.path.exists(temp_dir):
-                logger.info("Temp files left for inspection in: %s", os.path.abspath(temp_dir))
-        except (KeyError, TypeError):
-            pass
         raise
 
     elapsed = time.time() - start_time

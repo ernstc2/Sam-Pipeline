@@ -5,7 +5,6 @@ server              = YOUR_SERVER
 database            = Sam
 username            = tom
 password            = REPLACE_ME
-driver              = ODBC Driver 18 for SQL Server
 encrypt             = yes
 trust_server_certificate = yes
 
@@ -16,15 +15,6 @@ backup_count        = 5
 
 [pipeline]
 batch_size          = 10000
-template_table      = SAM_PUBLIC_MONTHLY_Empty
-
-[portal]
-url                 = https://api.sam.gov/data-services/v1/extracts
-api_key             = REPLACE_ME
-; download_url      = (optional) set a direct URL to skip the API call
-
-[download]
+template_table      = SAM_PUBLIC_MONTHLY_20250601
+input_dir           = input
 temp_dir            = temp
-connect_timeout     = 30
-read_timeout        = 60
-max_retries         = 3

@@ -1,8 +1,22 @@
-.planning/
-sam_pipeline/config.ini
-sam_pipeline/logs/
-sam_pipeline/work/
+# Credentials
+config.ini
+
+# Runtime output
+logs/
+input/
+temp/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Development
+.planning/
 .claude/
+CLAUDE.md
+pytest.ini
+tests/
+
+# Reference docs
+*.docx
+SAM Pipeline Context.md
+SAM Public_Headers.txt
