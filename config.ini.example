@@ -3,8 +3,8 @@
 [database]
 server              = YOUR_SERVER
 database            = Sam
-username            = tom
-password            = REPLACE_ME
+username            = YOUR_USERNAME
+password            = YOUR_PASSWORD
 encrypt             = yes
 trust_server_certificate = yes
 
