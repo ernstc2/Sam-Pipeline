@@ -24,3 +24,12 @@ current_view        = SAM_Current
 
 [sam_api]
 api_key             =
+
+[cleanup]
+; Optional: auto-delete old CSV exports that pile up from the monthly
+; workflow. Leave csv_dir blank to disable. Only files in csv_dir matching
+; csv_pattern AND older than retention_months are removed, and each deletion
+; is logged. Keep csv_pattern narrow so nothing unrelated is ever touched.
+csv_dir             =
+csv_pattern         = *.csv
+retention_months    = 3

@@ -4,7 +4,7 @@ import os
 import time
 from logging.handlers import RotatingFileHandler
 
-import download, extract, transform, db
+import download, extract, transform, db, cleanup
 
 
 def load_config(config_path="config.ini"):
@@ -113,6 +113,13 @@ def main():
                 logger.info("Removed temp file: %s", dat_path)
             except OSError as exc:
                 logger.warning("Could not remove temp file %s: %s", dat_path, exc)
+
+        # Prune old CSV exports that would otherwise pile up (config-driven,
+        # opt-in). Never fatal — housekeeping must not fail a good load.
+        try:
+            cleanup.run(config, logger)
+        except Exception as exc:
+            logger.warning("CSV cleanup step failed: %s", exc)
 
     except Exception:
         elapsed = time.time() - start_time
