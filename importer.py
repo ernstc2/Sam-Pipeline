@@ -64,7 +64,7 @@ def main():
             logger.info("No API key configured — expecting manual ZIP in input folder")
 
         # Extract: find ZIP in input folder, extract .dat
-        dat_path = extract.run(config, logger)
+        dat_path, zip_path = extract.run(config, logger)
         logger.info("Extracted .dat: %s", dat_path)
 
         # Transform: parse date and build table name
@@ -76,13 +76,35 @@ def main():
         # Load: connect, stream rows, bulk insert
         conn = db.connect(config)
         try:
-            batch_size = int(config["pipeline"]["batch_size"])
-            rows = [row for _, row in transform.stream_dat(dat_path)]
-            logger.info("Parsed %d rows from %s", len(rows), dat_filename)
-            db.load_table(conn, tbl, rows, logger, batch_size=batch_size)
-            db.enrich_contact_info(conn, tbl, logger)
+            if db.table_exists(conn, tbl):
+                # Already loaded — not an error. The safety guard forbids
+                # overwriting existing data, so there is simply nothing to do.
+                existing = db.count_rows(conn, tbl)
+                logger.warning(
+                    "%s is already loaded (%d rows) — nothing to do. "
+                    "To load a new month, put that month's ZIP in the input folder.",
+                    tbl, existing,
+                )
+                already_loaded = True
+            else:
+                already_loaded = False
+                batch_size = int(config["pipeline"]["batch_size"])
+                rows = [row for _, row in transform.stream_dat(dat_path)]
+                logger.info("Parsed %d rows from %s", len(rows), dat_filename)
+                db.load_table(conn, tbl, rows, logger, batch_size=batch_size)
+                db.enrich_contact_info(conn, tbl, logger)
+                view_name = config.get("pipeline", "current_view", fallback="").strip()
+                db.update_current_view(conn, tbl, view_name, logger)
         finally:
             conn.close()
+
+        if not already_loaded:
+            # Archive the source ZIP out of input/ so it is not reprocessed
+            # next run. Failure here is non-fatal — the load already succeeded.
+            try:
+                extract.archive_zip(zip_path, config, logger, date_str)
+            except OSError as exc:
+                logger.warning("Could not archive source ZIP %s: %s", zip_path, exc)
 
         # Cleanup extracted .dat temp file on success
         if dat_path and os.path.exists(dat_path):

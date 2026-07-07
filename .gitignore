@@ -13,6 +13,7 @@ __pycache__/
 .planning/
 .claude/
 CLAUDE.md
+HANDOFF.md
 pytest.ini
 tests/
 

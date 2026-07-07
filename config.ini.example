@@ -17,6 +17,10 @@ backup_count        = 5
 batch_size          = 10000
 input_dir           = input
 temp_dir            = temp
+; Optional: name of an existing view to repoint at each new monthly table
+; after a successful load. Leave blank to disable. The view must already
+; exist; its column list is preserved and only the source table is swapped.
+current_view        = SAM_Current
 
 [sam_api]
-api_key             = 
+api_key             =

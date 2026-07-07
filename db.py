@@ -159,6 +159,13 @@ def table_exists(conn, table_name):
     return cursor.fetchone() is not None
 
 
+def count_rows(conn, table_name):
+    """Return the row count of an existing table."""
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT COUNT(*) FROM [{table_name}]")
+    return cursor.fetchone()[0]
+
+
 def _build_create_ddl(table_name):
     """Build a CREATE TABLE statement matching prod table structure."""
     col_defs = []
@@ -300,3 +307,65 @@ def enrich_contact_info(conn, table_name, logger):
     conn.commit()
     logger.info("Enriched %d rows with contact info from SAM_CONTACT_INFO", updated)
     return updated
+
+
+def update_current_view(conn, table_name, view_name, logger):
+    """Repoint an existing view at the newly loaded table.
+
+    Automates the manual step of pointing SAM_Current at the latest monthly
+    table. The view's current column list is read back and preserved exactly;
+    only the source table is swapped, so sibling views that depend on its shape
+    are unaffected.
+
+    This is the one deliberate exception to the pipeline's "CREATE + INSERT
+    only" rule, and only for the configured view. It issues ALTER VIEW against
+    an already-existing view and never touches any table data. Skips gracefully
+    with a warning when no view is configured, the view does not already exist,
+    or the new table is missing a column the view expects.
+    """
+    if not view_name:
+        return None
+
+    cursor = conn.cursor()
+
+    # Only repoint a view that already exists — never invent one, because we
+    # cannot know the intended column list for a brand-new view.
+    cursor.execute(
+        "SELECT 1 FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = ?",
+        (view_name,),
+    )
+    if cursor.fetchone() is None:
+        logger.warning("View %s not found — skipping view refresh", view_name)
+        return None
+
+    # Read the view's current columns; the rebuilt view keeps them exactly.
+    cursor.execute(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+        "WHERE TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
+        (view_name,),
+    )
+    view_cols = [row[0] for row in cursor.fetchall()]
+
+    cursor.execute(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?",
+        (table_name,),
+    )
+    table_cols = {row[0] for row in cursor.fetchall()}
+
+    missing = [c for c in view_cols if c not in table_cols]
+    if missing:
+        logger.warning(
+            "View %s expects columns missing from %s (%s) — skipping view refresh",
+            view_name, table_name, ", ".join(missing),
+        )
+        return None
+
+    col_list = ", ".join(f"[{c}]" for c in view_cols)
+    ddl = (
+        f"ALTER VIEW [{view_name}] AS "
+        f"SELECT {col_list} FROM [{table_name}]"
+    )
+    cursor.execute(ddl)
+    conn.commit()
+    logger.info("Repointed view %s to %s", view_name, table_name)
+    return view_name

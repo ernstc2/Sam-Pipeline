@@ -1,17 +1,45 @@
 import glob
 import os
+import shutil
 import zipfile
 
 
 def run(config, logger):
-    """Find a SAM ZIP in the input folder, extract the .dat, return its path."""
+    """Find a SAM ZIP in the input folder and extract the .dat.
+
+    Returns a ``(dat_path, zip_path)`` tuple: the extracted .dat in the temp
+    directory and the source ZIP it came from, so the caller can archive the
+    ZIP after a successful load and avoid reprocessing it next run.
+    """
     input_dir = config["pipeline"]["input_dir"]
     temp_dir = config["pipeline"].get("temp_dir", "temp")
     os.makedirs(temp_dir, exist_ok=True)
 
     zip_path = _find_zip(input_dir, logger)
     dat_path = _extract_dat(zip_path, temp_dir, logger)
-    return dat_path
+    return dat_path, zip_path
+
+
+def archive_zip(zip_path, config, logger, date_str):
+    """Move a loaded source ZIP out of input/ into the archive folder.
+
+    The ZIP is renamed with its load date so there is a record of what was
+    loaded and, more importantly, so it is no longer picked up on the next
+    run. Never overwrites an existing archived file.
+    """
+    processed_dir = config["pipeline"].get("processed_dir", "processed")
+    os.makedirs(processed_dir, exist_ok=True)
+
+    base, ext = os.path.splitext(os.path.basename(zip_path))
+    dest = os.path.join(processed_dir, f"{base}_{date_str}{ext}")
+    counter = 1
+    while os.path.exists(dest):
+        dest = os.path.join(processed_dir, f"{base}_{date_str}_{counter}{ext}")
+        counter += 1
+
+    shutil.move(zip_path, dest)
+    logger.info("Archived source ZIP to %s", dest)
+    return dest
 
 
 def _find_zip(input_dir, logger):
