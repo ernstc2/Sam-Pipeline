@@ -33,3 +33,13 @@ api_key             =
 csv_dir             =
 csv_pattern         = *.csv
 retention_months    = 3
+
+; Used only by provision_contact_info.py (one-time). The source database that
+; already has SAM_CONTACT_INFO; the script copies it into [database] above.
+[contact_source]
+server              = YOUR_SOURCE_SERVER
+database            = Sam
+username            = YOUR_USERNAME
+password            = YOUR_PASSWORD
+encrypt             = yes
+trust_server_certificate = yes
